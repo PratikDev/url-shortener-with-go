@@ -7,16 +7,29 @@ import (
 	"strconv"
 
 	"github.com/pratikdev/url-shortner-with-go/controller"
+	"github.com/pratikdev/url-shortner-with-go/middleware"
 )
 
 const PORT = 5000
 
 func main() {
-	http.HandleFunc("GET /", controller.HomeHandler)
-	http.HandleFunc("GET /{id}", controller.GetURL)
+	router := http.NewServeMux()
+
+	router.HandleFunc("GET /", controller.HomeHandler)
+	router.HandleFunc("POST /login", controller.LoginHandler)
+	router.HandleFunc("POST /register", controller.RegisterHandler)
+	router.HandleFunc("GET /health", controller.HealthCheck)
+	router.HandleFunc("GET /{id}", controller.GetURL)
+
+	middlewareStack := middleware.Chain(middleware.Logging)
+
+	portString := ":" + strconv.Itoa(PORT)
+	server := http.Server{
+		Addr:    portString,
+		Handler: middlewareStack(router),
+	}
 
 	fmt.Printf("Server running in http://localhost:%d\n", PORT)
 
-	portString := ":" + strconv.Itoa(PORT)
-	log.Fatal(http.ListenAndServe(portString, nil))
+	log.Fatal(server.ListenAndServe())
 }

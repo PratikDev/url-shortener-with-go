@@ -9,12 +9,15 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/pratikdev/url-shortner-with-go/customErrors"
+	"github.com/pratikdev/url-shortner-with-go/models"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var Collection *mongo.Collection
+var UserCollection *mongo.Collection
 
 // initiating mongodb connection
 func init() {
@@ -26,6 +29,7 @@ func init() {
 
 	const db_name = "short-url"
 	const collection_name = "urls"
+	const users_collection_name = "users"
 	connection_string := os.Getenv("MONGODB_CONNECTION_STRING")
 
 	// client options
@@ -41,8 +45,73 @@ func init() {
 	}
 
 	Collection = client.Database(db_name, dbOption).Collection(collection_name)
+	UserCollection = client.Database(db_name, dbOption).Collection(users_collection_name)
 
-	fmt.Println("Collection instance is ready")
+	fmt.Println("Collection instances are ready")
+}
+
+// HashPassword hashes a plaintext password using bcrypt
+func hashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
+
+// CheckPasswordHash compares a hashed password with a plaintext password
+func checkPasswordHash(hashedPassword string, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	return err == nil
+}
+
+// login user
+func LoginUser(ld models.LoginDetails) (models.User, error) {
+	filter := bson.M{"username": ld.Username}
+	result := UserCollection.FindOne(context.Background(), filter)
+
+	var user models.User
+	err := result.Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return models.User{}, &customErrors.CustomError{Code: http.StatusNotFound, Message: "No user found with the given name"}
+		}
+
+		return models.User{}, &customErrors.CustomError{Code: http.StatusInternalServerError, Message: err.Error()}
+	}
+
+	if !checkPasswordHash(user.Password, ld.Password) {
+		return user, &customErrors.CustomError{Code: http.StatusUnauthorized, Message: "Invalid credentials"}
+	}
+
+	return user, nil
+}
+
+// register user
+func RegisterUser(user models.LoginDetails) error {
+	// check if user already exists
+	filter := bson.M{"username": user.Username}
+	existingUserResult := UserCollection.FindOne(context.Background(), filter)
+
+	var existingUser models.User
+	if err := existingUserResult.Decode(&existingUser); err == nil {
+		return &customErrors.CustomError{Code: http.StatusConflict, Message: "Username taken"}
+	}
+
+	hashedPassword, err := hashPassword(user.Password)
+	if err != nil {
+		return &customErrors.CustomError{Code: http.StatusInternalServerError, Message: err.Error()}
+	}
+
+	_, docCreationErr := UserCollection.InsertOne(context.Background(), models.User{
+		Username: user.Username,
+		Password: hashedPassword,
+	})
+	if docCreationErr != nil {
+		return &customErrors.CustomError{Code: http.StatusInternalServerError, Message: docCreationErr.Error()}
+	}
+
+	return nil
 }
 
 // Get URL from id
@@ -64,5 +133,4 @@ func GetURLFromId(id string) (string, error) {
 	}
 
 	return "", &customErrors.CustomError{Code: http.StatusNotFound, Message: "URL not found"}
-
 }
