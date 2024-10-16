@@ -7,24 +7,21 @@ import (
 	"github.com/pratikdev/url-shortner-with-go/controller/mongo_connection"
 	"github.com/pratikdev/url-shortner-with-go/customErrors"
 	"github.com/pratikdev/url-shortner-with-go/models"
+	"github.com/pratikdev/url-shortner-with-go/token"
 )
 
 // HealthCheck shows the status of the server
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	w.Write([]byte(`{"status":"ok"}`))
 }
 
 // HomeHandler is the handler for the home route
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"data": "something here"})
+	w.Write([]byte(`{"message":"Welcome to short-url"}`))
 }
 
 // LoginHandler is the handler for the login route
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-
 	var loginDetails models.LoginDetails
 	if err := json.NewDecoder(r.Body).Decode(&loginDetails); err != nil {
 		err = &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid request body"}
@@ -32,18 +29,31 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := mongo_connection.LoginUser(loginDetails); err != nil {
+	// log the user in
+	user, err := mongo_connection.LoginUser(loginDetails)
+	if err != nil {
 		customErrors.SendErrorResponse(w, err)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
+	// get token from the token module using username
+	tokenResponse, err := token.GetToken(user.Username)
+	if err != nil {
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:    "token",
+		Value:   tokenResponse.Value,
+		Expires: tokenResponse.ExpirationTime,
+	})
+
+	w.Write([]byte(`{"message":"Login Successful"}`))
 }
 
 // RegisterHandler is the handler for the register route
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-
 	var registerDetails models.LoginDetails
 	if err := json.NewDecoder(r.Body).Decode(&registerDetails); err != nil {
 		err = &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid request body"}
@@ -56,13 +66,11 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{"message": "Register successful"})
+	w.Write([]byte(`{"message":"Register Successful"}`))
 }
 
 // GetURL is the handler for the route that gets the URL from the id
 func GetURL(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-
 	id := r.PathValue("id")
 	url, err := mongo_connection.GetURLFromId(id)
 	if err != nil {
@@ -70,5 +78,5 @@ func GetURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{"url": url})
+	w.Write([]byte(`{"url":"` + url + `"}`))
 }

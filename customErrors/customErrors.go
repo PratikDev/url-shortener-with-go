@@ -1,7 +1,6 @@
 package customErrors
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -28,8 +27,7 @@ func SendErrorResponse(w http.ResponseWriter, err error) {
 		responseCode = customErr.Code
 	}
 
-	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(responseCode)
 
-	json.NewEncoder(w).Encode(map[string]string{"message": responseMessage})
+	w.Write([]byte(`{"message":"` + responseMessage + `"}`))
 }
