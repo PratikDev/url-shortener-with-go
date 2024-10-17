@@ -17,3 +17,9 @@ type NewURL struct {
 	URL    string        `json:"url,omitempty"`
 	Author bson.ObjectID `json:"author,omitempty"`
 }
+
+type URL struct {
+	ID     bson.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	URL    string        `json:"url,omitempty"`
+	Author bson.ObjectID `json:"author,omitempty"`
+}

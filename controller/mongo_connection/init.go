@@ -136,11 +136,32 @@ func GetURLFromId(id string) (string, error) {
 }
 
 // Create new URL
-func CreateNewURL(data models.NewURL) error {
-	_, err := Collection.InsertOne(context.Background(), data)
+func CreateNewURL(data models.NewURL) (string, error) {
+	result, err := Collection.InsertOne(context.Background(), data)
 	if err != nil {
-		return &customErrors.CustomError{Code: http.StatusInternalServerError, Message: err.Error()}
+		return "", &customErrors.CustomError{Code: http.StatusInternalServerError, Message: err.Error()}
 	}
 
-	return nil
+	return result.InsertedID.(bson.ObjectID).Hex(), nil
+}
+
+// Get all URLs
+func GetAllURLs(authorId string) ([]models.URL, error) {
+	authorObjectId, err := bson.ObjectIDFromHex(authorId)
+	if err != nil {
+		return nil, &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid ID"}
+	}
+
+	filter := bson.M{"author": authorObjectId}
+	cursor, err := Collection.Find(context.Background(), filter)
+	if err != nil {
+		return nil, &customErrors.CustomError{Code: http.StatusInternalServerError, Message: err.Error()}
+	}
+
+	var urls []models.URL
+	if err = cursor.All(context.Background(), &urls); err != nil {
+		return nil, &customErrors.CustomError{Code: http.StatusInternalServerError, Message: err.Error()}
+	}
+
+	return urls, nil
 }

@@ -20,10 +20,11 @@ func main() {
 	router.HandleFunc("POST /login", controller.LoginHandler)
 	router.HandleFunc("POST /register", controller.RegisterHandler)
 	router.HandleFunc("GET /health", controller.HealthCheck)
+	router.HandleFunc("GET /{id}", controller.GetURL)
 
 	// Authenticated routes
-	router.HandleFunc("GET /{id}", middleware.Auth(controller.GetURL))
 	router.HandleFunc("POST /new", middleware.Auth(controller.NewURL))
+	router.HandleFunc("GET /all", middleware.Auth(controller.GetAllURL))
 
 	middlewareStack := middleware.Chain(middleware.Logging, middleware.Recover, middleware.SetHeaders)
 

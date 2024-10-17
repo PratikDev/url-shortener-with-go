@@ -107,17 +107,6 @@ func NewURL(w http.ResponseWriter, r *http.Request) {
 
 	var newURL models.NewURL
 
-	// convert the userId to an ObjectID
-	userIdObject, err := bson.ObjectIDFromHex(userId)
-	if err != nil {
-		err = &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid user id"}
-		customErrors.SendErrorResponse(w, err)
-		return
-	}
-
-	// store userIdObject in Author in newURL
-	newURL.Author = userIdObject
-
 	// decode the request body into newURL
 	if err := json.NewDecoder(r.Body).Decode(&newURL); err != nil {
 		err = &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid request body"}
@@ -132,11 +121,48 @@ func NewURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// create a new URL
-	if err := mongo_connection.CreateNewURL(newURL); err != nil {
+	// convert the userId to an ObjectID
+	userIdObject, err := bson.ObjectIDFromHex(userId)
+	if err != nil {
+		err = &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid user id"}
 		customErrors.SendErrorResponse(w, err)
 		return
 	}
 
-	w.Write([]byte(`{"message":"URL created"}`))
+	// store userIdObject in Author in newURL
+	newURL.Author = userIdObject
+
+	// create a new URL
+	id, err := mongo_connection.CreateNewURL(newURL)
+	if err != nil {
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	w.Write([]byte(`{"message":"URL created", "id":"` + id + `"}`))
+}
+
+// GetAllURL is the handler for the route that gets all the URLs
+func GetAllURL(w http.ResponseWriter, r *http.Request) {
+	userId := r.Header.Get("userId")
+	if userId == "" {
+		err := &customErrors.CustomError{Code: http.StatusUnauthorized, Message: "Unauthorized"}
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	urls, err := mongo_connection.GetAllURLs(userId)
+	if err != nil {
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	urlsJSON, err := json.Marshal(urls)
+	if err != nil {
+		err = &customErrors.CustomError{Code: http.StatusInternalServerError, Message: err.Error()}
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	w.Write(urlsJSON)
 }
