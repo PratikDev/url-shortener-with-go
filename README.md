@@ -73,20 +73,20 @@ cd url-shortener-with-go
 touch .env
 ```
 
-3.1. Add the following environment variables to the `.env` file
+Add the following environment variables to the `.env` file
 
 ```env
 MONGODB_CONNECTION_STRING=<your_mongodb_connection_string>
 JWT_SECRET=<your_jwt_secret>
 ```
 
-3. Install the dependencies
+4. Install the dependencies
 
 ```bash
 go mod tidy
 ```
 
-4. Run the application
+5. Run the application
 
 ```bash
 go run main.go
