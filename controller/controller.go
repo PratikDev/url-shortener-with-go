@@ -30,6 +30,13 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check fields validation
+	if loginDetails.Username == "" || loginDetails.Password == "" {
+		err := &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid request body"}
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
 	// log the user in
 	user, err := mongo_connection.LoginUser(loginDetails)
 	if err != nil {
@@ -58,6 +65,13 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var registerDetails models.LoginDetails
 	if err := json.NewDecoder(r.Body).Decode(&registerDetails); err != nil {
 		err = &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid request body"}
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	// check fields validation
+	if registerDetails.Username == "" || registerDetails.Password == "" {
+		err := &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid request body"}
 		customErrors.SendErrorResponse(w, err)
 		return
 	}
@@ -107,6 +121,13 @@ func NewURL(w http.ResponseWriter, r *http.Request) {
 	// decode the request body into newURL
 	if err := json.NewDecoder(r.Body).Decode(&newURL); err != nil {
 		err = &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid request body"}
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	// check fields validation
+	if newURL.URL == "" {
+		err := &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid request body"}
 		customErrors.SendErrorResponse(w, err)
 		return
 	}
