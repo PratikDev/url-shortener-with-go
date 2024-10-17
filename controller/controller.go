@@ -8,6 +8,7 @@ import (
 	"github.com/pratikdev/url-shortner-with-go/customErrors"
 	"github.com/pratikdev/url-shortner-with-go/models"
 	"github.com/pratikdev/url-shortner-with-go/token"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // HealthCheck shows the status of the server
@@ -36,8 +37,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// get token from the token module using username
-	tokenResponse, err := token.GetToken(user.Username)
+	// get token from the token module using user id
+	tokenResponse, err := token.GetToken(user.ID.Hex())
 	if err != nil {
 		customErrors.SendErrorResponse(w, err)
 		return
@@ -79,4 +80,42 @@ func GetURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte(`{"url":"` + url + `"}`))
+}
+
+// NewURL is the handler for the route that creates a new URL
+func NewURL(w http.ResponseWriter, r *http.Request) {
+	userId := r.Header.Get("userId")
+	if userId == "" {
+		err := &customErrors.CustomError{Code: http.StatusUnauthorized, Message: "Unauthorized"}
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	var newURL models.NewURL
+
+	// convert the userId to an ObjectID
+	userIdObject, err := bson.ObjectIDFromHex(userId)
+	if err != nil {
+		err = &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid user id"}
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	// store userIdObject in Author in newURL
+	newURL.Author = userIdObject
+
+	// decode the request body into newURL
+	if err := json.NewDecoder(r.Body).Decode(&newURL); err != nil {
+		err = &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Invalid request body"}
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	// create a new URL
+	if err := mongo_connection.CreateNewURL(newURL); err != nil {
+		customErrors.SendErrorResponse(w, err)
+		return
+	}
+
+	w.Write([]byte(`{"message":"URL created"}`))
 }

@@ -23,6 +23,7 @@ func main() {
 
 	// Authenticated routes
 	router.HandleFunc("GET /{id}", middleware.Auth(controller.GetURL))
+	router.HandleFunc("POST /new", middleware.Auth(controller.NewURL))
 
 	middlewareStack := middleware.Chain(middleware.Logging, middleware.Recover, middleware.SetHeaders)
 

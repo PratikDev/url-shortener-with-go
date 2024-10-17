@@ -9,8 +9,8 @@ import (
 	"github.com/pratikdev/url-shortner-with-go/customErrors"
 )
 
-type claims struct {
-	Username string `json:"username"`
+type customClaims struct {
+	UserId string `json:"userId"`
 	jwt.RegisteredClaims
 }
 
@@ -19,10 +19,10 @@ type tokenResponse struct {
 	ExpirationTime time.Time
 }
 
-func GetToken(username string) (tokenResponse, error) {
+func GetToken(userId string) (tokenResponse, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &claims{
-		Username: username,
+	claims := &customClaims{
+		UserId: userId,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
@@ -43,16 +43,24 @@ func GetToken(username string) (tokenResponse, error) {
 	}, nil
 }
 
-func ValidateToken(token string) (bool, error) {
+type validationResponse struct {
+	IsValid bool   `json:"isValid"`
+	UserID  string `json:"userId"`
+}
+
+func ValidateToken(token string) (validationResponse, error) {
 	tokenStr := token
-	claims := &claims{}
+	claims := &customClaims{}
 
 	tkn, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
 		return []byte(os.Getenv("JWT_SECRET")), nil
 	})
 	if err != nil || !tkn.Valid {
-		return false, &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Unauthorized"}
+		return validationResponse{}, &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Unauthorized"}
 	}
 
-	return tkn.Valid, nil
+	return validationResponse{
+		IsValid: tkn.Valid,
+		UserID:  claims.UserId,
+	}, nil
 }

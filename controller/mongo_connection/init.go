@@ -128,9 +128,19 @@ func GetURLFromId(id string) (string, error) {
 	result.Decode(&urlObject)
 
 	// check if url key exists in the object
-	if url, ok := urlObject["url"].(string); ok {
-		return url, nil
+	if _, ok := urlObject["url"].(string); ok {
+		return urlObject["url"].(string), nil
 	}
 
 	return "", &customErrors.CustomError{Code: http.StatusNotFound, Message: "URL not found"}
+}
+
+// Create new URL
+func CreateNewURL(data models.NewURL) error {
+	_, err := Collection.InsertOne(context.Background(), data)
+	if err != nil {
+		return &customErrors.CustomError{Code: http.StatusInternalServerError, Message: err.Error()}
+	}
+
+	return nil
 }

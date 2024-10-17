@@ -79,11 +79,14 @@ func Auth(handler func(http.ResponseWriter, *http.Request)) func(http.ResponseWr
 			return
 		}
 
-		valid, err := token.ValidateToken(cookieToken.Value)
-		if err != nil || !valid {
+		validationResponse, err := token.ValidateToken(cookieToken.Value)
+		if err != nil || !validationResponse.IsValid {
 			customErrors.SendErrorResponse(w, err)
 			return
 		}
+
+		// if the request is authenticated, set the userId in the request context
+		r.Header.Set("userId", validationResponse.UserID)
 
 		handler(w, r)
 	}
