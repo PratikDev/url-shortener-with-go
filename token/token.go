@@ -19,6 +19,7 @@ type tokenResponse struct {
 	ExpirationTime time.Time
 }
 
+// get token
 func GetToken(userId string) (tokenResponse, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &customClaims{
@@ -48,8 +49,8 @@ type validationResponse struct {
 	UserID  string `json:"userId"`
 }
 
-func ValidateToken(token string) (validationResponse, error) {
-	tokenStr := token
+// validate token
+func ValidateToken(tokenStr string) (validationResponse, error) {
 	claims := &customClaims{}
 
 	tkn, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
@@ -62,5 +63,26 @@ func ValidateToken(token string) (validationResponse, error) {
 	return validationResponse{
 		IsValid: tkn.Valid,
 		UserID:  claims.UserId,
+	}, nil
+}
+
+// refresh token when only 5 minutes are left
+func RefreshToken(tokenStr string) (tokenResponse, error) {
+	claims := &customClaims{}
+
+	tkn, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("JWT_SECRET")), nil
+	})
+	if err != nil || !tkn.Valid {
+		return tokenResponse{}, &customErrors.CustomError{Code: http.StatusBadRequest, Message: "Unauthorized"}
+	}
+
+	if time.Until(claims.ExpiresAt.Time).Minutes() <= 5 {
+		return GetToken(claims.UserId)
+	}
+
+	return tokenResponse{
+		Value:          tokenStr,
+		ExpirationTime: claims.ExpiresAt.Time,
 	}, nil
 }

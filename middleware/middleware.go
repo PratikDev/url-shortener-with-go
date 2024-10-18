@@ -79,7 +79,20 @@ func Auth(handler func(http.ResponseWriter, *http.Request)) func(http.ResponseWr
 			return
 		}
 
-		validationResponse, err := token.ValidateToken(cookieToken.Value)
+		// refresh the token
+		tokenResponse, err := token.RefreshToken(cookieToken.Value)
+		if err != nil {
+			customErrors.SendErrorResponse(w, err)
+			return
+		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:    "token",
+			Value:   tokenResponse.Value,
+			Expires: tokenResponse.ExpirationTime,
+		})
+
+		validationResponse, err := token.ValidateToken(tokenResponse.Value)
 		if err != nil || !validationResponse.IsValid {
 			customErrors.SendErrorResponse(w, err)
 			return
